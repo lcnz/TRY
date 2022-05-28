@@ -25,7 +25,9 @@ contract TRY {
     uint constant TKT_PRICE = 200000 gwei; //ticket price
     uint totalBalance; //contract balance
 
-    TryKitty nft; //prize
+    bool prizesAwarded;
+
+    TryKitty tryNft; //prize
 
     //struct that represents a ticket
     struct Ticket {
@@ -54,10 +56,9 @@ contract TRY {
     lotteryState state;
 
     //event to log round phase and lottery state
-   	event RoundPhaseChanged(roundPhase newPhase);
-    event RoundFinished(roundPhase roundFinished);
-    event LotteryStateClosed(lotteryState closedState);
-
+    event LotteryStateChanged(string eventLog, lotteryState newState);
+    event RoundPhaseChanged(string eventLog, roundPhase newPhase);
+    
     //to ensure the current phase of the round is the correct one
     modifier isPhase(roundPhase _phase) {
         require(phase == _phase, "Wrong round phase for this action");
@@ -74,25 +75,25 @@ contract TRY {
         require(state == lotteryState.Active, "Lottery has been closed by the lottery operator");
         _;
     }
-    //function that change the round phase
-    function _changeState(lotteryState _newState) private {
+    //function that change the lottery state
+    function changeLotteryState(lotteryState _newState) private {
 		state = _newState;
-		emit LotteryStateClosed(state);
+        if(_newState == lotteryState.Active)
+		    emit LotteryStateChanged("The Lottery has been activated", state);
+        else
+            emit LotteryStateChanged("The Lottery has been closed", state);
+	}
+    //function that change the lottery state
+    function changePhaseRound(roundPhase _newPhase) private {
+		phase = _newPhase;
+        if(_newPhase == roundPhase.Active)
+		    emit RoundPhaseChanged("The Round has been activated", phase);
+        else if(_newPhase == roundPhase.Closed)
+            emit RoundPhaseChanged("The Round has been closed", phase);
+        else
+            emit RoundPhaseChanged("The Round is Finished", phase);
 	}
 
-    function startNewRound() public onlyOwner {
-
-    }
-
-    //function that change the lottery state in closed, in order to deactivate the Lottery
-    function closeLottery() public payable isLotteryActive onlyOperator {
-		state = lotteryState.Closed;
-		emit LotteryStateClosed(state);
-
-        //controlla se il round era attivo, nel caso vanno rimborsati tutti i giocatori
-	}
-
-    //TODO: check if lottery contract is Active or Not, possibly check the check with round
 
     //useful event to log what happen
     event Log(string eventLog, address caller);
@@ -101,10 +102,15 @@ contract TRY {
     
 
     constructor() {
-        require(msg.sender == operator, "This function is only for the Lottery Operator");
-        
+
+        operator = payable(msg.sender);        
         totalBalance = 0;
-        operator = msg.sender;
+        prizesAwarded = true;
+        tryNft = new TryKitty(operator);
+
+        //activate the lottery and the round
+        changeLotteryState(lotteryState.Active);
+        changePhaseRound(roundPhase.Active);
     }
 
     /**
@@ -112,12 +118,13 @@ contract TRY {
     */
     function buyTicket(uint[] memory pickedNumbers) public payable isLotteryActive() isRoundActive() {
         uint money = msg.value;
-        address player = msg.sender;
+        address player = msg.sender; //necessary?
 		require(money >= TKT_PRICE, "200000 gwei are required to buy a ticket");
         require(pickedNumbers.length == 6, "Pick 5 standard numbers and a powerball");
-        bool[69] memory stdN; //side array used to check duplicates with direct access
+        bool[69] memory checkN; //side array used to check duplicates with direct access
+        uint[] memory stdN;
         for (uint i=0; i<69; i++) {
-            stdN[i] = false;
+            checkN[i] = false;
         }
         uint pwrB;
 
@@ -125,8 +132,8 @@ contract TRY {
         for(uint i = 0; i < pickedNumbers.length; i++) {
             if(i != 5) {
                 require(pickedNumbers[i] >= 1 && pickedNumbers[i] <= 69, "Choose a number in the range from 1 to 69");
-                require(!stdN[pickedNumbers[i]-1], "Duplicates not allowed");
-                stdN[pickedNumbers[i]-1] = true;
+                require(!checkN[pickedNumbers[i]-1], "Duplicates not allowed");
+                checkN[pickedNumbers[i]-1] = true;
             }
             else {
                 require(pickedNumbers[i] >= 1 && pickedNumbers[i] <= 26, "Choose a Powerball number in the range from 1 to 26");
@@ -138,11 +145,21 @@ contract TRY {
         totalBalance += money;
 
         //emit an event ticket bought or log ticket bought
-
+        emit TicketPurchased("Ticket Lottery purchased", msg.sender);
          //track player ticket 
         bets[msg.sender].push(Ticket({
         	stdNumbers: stdN,
         	pwrBall: pwrB
         	}));
 	}
+
+    //function that close and deactivate the lottery, and remburse the player 
+    function closeLottery() public payable isLotteryActive onlyOperator {
+		changeLotteryState(lotteryState.Closed);
+
+        //controlla se il round era attivo, nel caso vanno rimborsati tutti i giocatori
+	}
+
+    //TODO: check if lottery contract is Active or Not, possibly check the check with round
+
 }

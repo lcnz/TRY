@@ -11,13 +11,16 @@ contract TryKitty is ERC721, Ownable {
 
     Counters.Counter private _tokenIdCounter;
 
+    address owner;
 
     //Mapping classess(rank) to tokenid
     mapping(uint => uint256) classes;
     //Mapping tokenId to description like a Pokedex
     mapping(uint => string) KittyDex;
 
-    constructor() ERC721("TryKitty", "TKTY") {}
+    constructor(address operator) ERC721("TryKitty", "TKTY") {
+        owner = operator;
+    }
 
     function safeMint(address to, uint class) public onlyOwner returns(uint256){
         uint256 tokenId = _tokenIdCounter.current();
