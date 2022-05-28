@@ -16,11 +16,15 @@ contract TRY {
         _;
     }
     
+    function withdraw() public onlyOperator {
+       operator.transfer(address(this).balance);
+    }
+
     uint[] numbers;
     uint powerball;
 
     uint blockNumber; //initial round block number
-    uint constant M_BLOCKS = 150; //lottery fixed duration 30 mins
+    uint constant M = 150; //lottery fixed duration 30 mins
     uint constant K = 42; //lottery fixed duration 30 mins
     uint constant TKT_PRICE = 200000 gwei; //ticket price
     uint totalBalance; //contract balance
@@ -33,6 +37,8 @@ contract TRY {
     struct Ticket {
         uint[] stdNumbers;
         uint pwrBall;
+        uint matchesN;
+        bool matchesPb;
     }
     //maps the ticket number to player
     mapping(address => Ticket[]) bets;
@@ -60,8 +66,8 @@ contract TRY {
     event RoundPhaseChanged(string eventLog, roundPhase newPhase);
     
     //to ensure the current phase of the round is the correct one
-    modifier isPhase(roundPhase _phase) {
-        require(phase == _phase, "Wrong round phase for this action");
+    modifier isRoundFinished() {
+        require(phase == roundPhase.Active, "New Round can start once the previoud is Finished");
         _;
     }
 
@@ -106,19 +112,27 @@ contract TRY {
         operator = payable(msg.sender);        
         totalBalance = 0;
         prizesAwarded = true;
-        tryNft = new TryKitty(operator);
+        tryNft = new TryKitty();
 
         //activate the lottery and the round
         changeLotteryState(lotteryState.Active);
+        //changePhaseRound(roundPhase.Active); meglio chiamare start New ROund
+
+    }
+
+    /**
+    * @dev start new round 
+    */
+    function startNewRound() public onlyOperator isLotteryActive isRoundFinished {
+        blockNumber = block.number;
         changePhaseRound(roundPhase.Active);
     }
 
     /**
     * @dev permitt to the users to buy the ticket 
     */
-    function buyTicket(uint[] memory pickedNumbers) public payable isLotteryActive() isRoundActive() {
+    function buy(uint[] memory pickedNumbers) isLotteryActive isRoundActive public payable {
         uint money = msg.value;
-        address player = msg.sender; //necessary?
 		require(money >= TKT_PRICE, "200000 gwei are required to buy a ticket");
         require(pickedNumbers.length == 6, "Pick 5 standard numbers and a powerball");
         bool[69] memory checkN; //side array used to check duplicates with direct access
@@ -147,19 +161,41 @@ contract TRY {
         //emit an event ticket bought or log ticket bought
         emit TicketPurchased("Ticket Lottery purchased", msg.sender);
          //track player ticket 
-        bets[msg.sender].push(Ticket({
-        	stdNumbers: stdN,
-        	pwrBall: pwrB
-        	}));
+        bets[msg.sender].push(Ticket(stdN, pwrB, 0, false));
 	}
 
-    //function that close and deactivate the lottery, and remburse the player 
+    /**
+    * @dev used by the lottery operator to draw numbers of the current lottery round
+    */
+    function drawNumbers() public onlyOperator isLotteryActive {
+        require(block.number % M == 0, "The Round is not Closed, is not the time to draw");
+    }
+
+    /**
+    * @dev used by lottery operator to distribute the prizes of the current lottery round
+    */
+    function givePrizes() public onlyOperator isLotteryActive isRoundFinished {
+        
+    }
+
+    /**
+    * @dev used to mint new collectibles
+    */
+    function mint() public onlyOperator isLotteryActive isRoundFinished {
+        
+    }
+
+    /**
+    * @dev used by the lottery operator to deactivate the lottery contract
+    */    
     function closeLottery() public payable isLotteryActive onlyOperator {
 		changeLotteryState(lotteryState.Closed);
 
         //controlla se il round era attivo, nel caso vanno rimborsati tutti i giocatori
+
+        //TODO: check if lottery contract is Active or Not, possibly check the check with round
 	}
 
-    //TODO: check if lottery contract is Active or Not, possibly check the check with round
+    
 
 }
