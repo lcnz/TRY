@@ -25,9 +25,9 @@ contract TRY {
 
     uint blockNumber; //initial round block number
     uint constant M = 150; //lottery fixed duration 30 mins
-    uint constant K = 42; //lottery fixed duration 30 mins
+    uint constant K = 42; //fixed parameter K
+    uint constant D = 10; //10 blocks represent 2 minutes delay
     uint constant TKT_PRICE = 200000 gwei; //ticket price
-    uint totalBalance; //contract balance
 
     bool prizesAwarded;
 
@@ -46,11 +46,8 @@ contract TRY {
     //list of winners.
     address[] winners;
 
-    //maps the tokenID to the prize
-    mapping(uint => TryKitty) prizes;
-
     //maps the tokenID to the class of prize
-    mapping(uint => uint) classes;
+    mapping(uint => uint256[]) prizeClasses;
 
     //list of tokenIDs
     uint[] Ids;
@@ -110,14 +107,17 @@ contract TRY {
     constructor() {
 
         operator = payable(msg.sender);        
-        totalBalance = 0;
         prizesAwarded = true;
         tryNft = new TryKitty();
 
         //activate the lottery and the round
         changeLotteryState(lotteryState.Active);
         //changePhaseRound(roundPhase.Active); meglio chiamare start New ROund
-
+        //generates the first 8 prizes, one for each class
+        for (uint i = 0; i<8; i++) {
+            //track tokeId to the class 
+            prizeClasses[i+1].push(tryNft.safeMint(operator, i+1));
+        }
     }
 
     /**
@@ -126,6 +126,7 @@ contract TRY {
     function startNewRound() public onlyOperator isLotteryActive isRoundFinished {
         blockNumber = block.number;
         changePhaseRound(roundPhase.Active);
+        //TODO cntrollare cosa altro c'è da fare per iniziare un nuovo round
     }
 
     /**
@@ -133,6 +134,7 @@ contract TRY {
     */
     function buy(uint[] memory pickedNumbers) isLotteryActive isRoundActive public payable {
         uint money = msg.value;
+        uint change;
 		require(money >= TKT_PRICE, "200000 gwei are required to buy a ticket");
         require(pickedNumbers.length == 6, "Pick 5 standard numbers and a powerball");
         bool[69] memory checkN; //side array used to check duplicates with direct access
@@ -155,20 +157,24 @@ contract TRY {
             } 
         }
 
-        //increase the balance of the contract
-        totalBalance += money;
-
         //emit an event ticket bought or log ticket bought
         emit TicketPurchased("Ticket Lottery purchased", msg.sender);
          //track player ticket 
         bets[msg.sender].push(Ticket(stdN, pwrB, 0, false));
+
+        if(money > TKT_PRICE) {
+            change = msg.value - TKT_PRICE;
+            // Reimbourse the change
+            payable(msg.sender).transfer(change);
+        }
 	}
 
     /**
     * @dev used by the lottery operator to draw numbers of the current lottery round
     */
-    function drawNumbers() public onlyOperator isLotteryActive {
+    function drawNumbers() public view onlyOperator isLotteryActive returns(uint[] memory drawed) {
         require(block.number % M == 0, "The Round is not Closed, is not the time to draw");
+
     }
 
     /**
