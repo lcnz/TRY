@@ -28,6 +28,7 @@ contract TRY {
     uint constant K = 42; //fixed parameter K
     uint constant D = 10; //10 blocks represent 2 minutes delay
     uint constant TKT_PRICE = 200000 gwei; //ticket price
+    uint roundTime;
 
     bool prizesAwarded;
 
@@ -125,6 +126,7 @@ contract TRY {
     */
     function startNewRound() public onlyOperator isLotteryActive isRoundFinished {
         blockNumber = block.number;
+        roudTime = blockNumber + M;
         changePhaseRound(roundPhase.Active);
         //TODO cntrollare cosa altro c'è da fare per iniziare un nuovo round
     }
@@ -133,6 +135,7 @@ contract TRY {
     * @dev permitt to the users to buy the ticket 
     */
     function buy(uint[] memory pickedNumbers) isLotteryActive isRoundActive public payable {
+        require(block.number < roundTime, "The operator has not closed the round, but the round time has ended");
         uint money = msg.value;
         uint change;
 		require(money >= TKT_PRICE, "200000 gwei are required to buy a ticket");
@@ -173,8 +176,19 @@ contract TRY {
     * @dev used by the lottery operator to draw numbers of the current lottery round
     */
     function drawNumbers() public view onlyOperator isLotteryActive returns(uint[] memory drawed) {
-        require(block.number % M == 0, "The Round is not Closed, is not the time to draw");
+        require(block.number >= roundTime, "The Round is not Closed, is not the time to draw");
+        bool[69] memory drawn;
+        for (uint i = 0; i < 69; i++) {
+            drawn[i] = false;
+        }
 
+        uint numberD;
+        bytes32 seed = block.blockhash(roundTime + K);
+
+        for (uint i = 0; i < 5; i++) {
+            numberD = uint(keccak256(abi.encodePacked(now, msg.sender, seed))) % 69;
+            //controlla se già estratto in qualche modo correggi
+        }
     }
 
     /**
