@@ -15,13 +15,12 @@ contract TRY {
         require(msg.sender == operator, "only the lottery operator can use this function");
         _;
     }
-    
+    //withdraw the funds of the contract
     function withdraw() public onlyOperator {
        operator.transfer(address(this).balance);
     }
 
     uint[] winningNumbers;
-    uint powerball;
 
     uint blockNumber; //initial round block number
     uint constant M = 150; //lottery fixed duration 30 mins
@@ -67,12 +66,17 @@ contract TRY {
     
     //to ensure the current phase of the round is the correct one
     modifier isRoundFinished() {
-        require(phase == roundPhase.Active, "New Round can start once the previoud is Finished");
+        require(phase == roundPhase.Finished, "The round has not yet Finished");
         _;
     }
 
     modifier isRoundActive() {
-        require(phase == roundPhase.Active, "Round is over, come back next time");
+        require(phase == roundPhase.Active, "The Round is over, come back next time");
+        _;
+    }
+
+    modifier isRoundClosed() {
+        require(phase == roundPhase.Closed, "the Round has not yet Closed");
         _;
     }
 
@@ -108,7 +112,7 @@ contract TRY {
     constructor() {
 
         operator = payable(msg.sender);        
-        prizesAwarded = true;
+        prizesAwarded = false;
         tryNft = new TryKitty();
 
         //activate the lottery and the round
@@ -161,7 +165,7 @@ contract TRY {
         }
 
         //emit an event ticket bought or log ticket bought
-        emit TicketPurchased("Ticket Lottery purchased", msg.sender);
+        emit Log("Ticket Lottery purchased", msg.sender);
          //track player ticket 
         bets[msg.sender].push(Ticket(stdN, pwrB, 0, false));
 
@@ -175,33 +179,39 @@ contract TRY {
     /**
     * @dev used by the lottery operator to draw numbers of the current lottery round
     */
-    function drawNumbers() public onlyOperator isLotteryActive {
+    function drawNumbers() public onlyOperator isLotteryActive isRoundActive {
         require(block.number >= roundTime, "The Round is not Closed, is not the time to draw");
+
         bool[69] memory checkN;
         for (uint i = 0; i < 69; i++) {
             checkN[i] = false;
         }
         //number drawn
-        uint nD;
+        uint extractedN;
         //seed
-        bytes32 seed = blockhash(roundTime + K);
+        bytes32 sourceR = blockhash(roundTime + K);
+        
+        uint seed = 0;
 
         for (uint i = 0; i < 5; i++) {
+            
             /**
             * number generator using the block stimestemp, sender address and the
             * the hash of the block of height at least X+K, where X is the height of 
             * the block corresponding to the end of R and K is a parameter
             */
-            nD = (uint(keccak256(abi.encodePacked(block.timestamp, msg.sender, seed))) % 69) + 1;
-            
+            extractedN = (uint(keccak256(abi.encodePacked(block.timestamp, sourceR, seed))) % 69) + 1;
             //check if the number is repeated or not
-            if( checkN[nD-1] ) {
+            if( checkN[extractedN-1] ) {
                 i -= 1;
             }
             else {
-                checkN[nD-1] = true;
-                winningNumbers[i] = nD;
+                winningNumbers[i] = extractedN;
+                checkN[extractedN-1] = true;
+
             }
+            //increment seed to avoid repetition
+            seed++;
         }
 
         //powerball number
@@ -209,15 +219,22 @@ contract TRY {
         emit Log("The Lottery Operator has drawn the winning numbers and the Powerball number", msg.sender);
         //close the round
         changePhaseRound(roundPhase.Closed);
-
         //TODO: chiamare la funzione che assegna i premi
     }
 
     /**
     * @dev used by lottery operator to distribute the prizes of the current lottery round
     */
-    function givePrizes() public onlyOperator isLotteryActive isRoundFinished {
-        
+    function givePrizes() public onlyOperator isLotteryActive isRoundClosed {
+        require(!prizesAwarded, "Prizes already Awarded");
+
+        uint wPowerball = winningNumbers[5];
+
+        for (uint i = 0; i < bets.length; i++) {
+
+        }
+
+        //TODO: terminare givePrizes
     }
 
     /**
