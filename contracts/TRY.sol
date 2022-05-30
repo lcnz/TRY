@@ -20,7 +20,7 @@ contract TRY {
        operator.transfer(address(this).balance);
     }
 
-    uint[] numbers;
+    uint[] winningNumbers;
     uint powerball;
 
     uint blockNumber; //initial round block number
@@ -43,6 +43,8 @@ contract TRY {
     }
     //maps the ticket number to player
     mapping(address => Ticket[]) bets;
+
+    //list of players in the round. necessario??
 
     //list of winners.
     address[] winners;
@@ -101,9 +103,7 @@ contract TRY {
 
     //useful event to log what happen
     event Log(string eventLog, address caller);
-    event TicketPurchased(string eventLog, address caller);
-    event NumbersDrawn(string eventLog, address caller);
-    
+        
 
     constructor() {
 
@@ -126,7 +126,7 @@ contract TRY {
     */
     function startNewRound() public onlyOperator isLotteryActive isRoundFinished {
         blockNumber = block.number;
-        roudTime = blockNumber + M;
+        roundTime = blockNumber + M;
         changePhaseRound(roundPhase.Active);
         //TODO cntrollare cosa altro c'è da fare per iniziare un nuovo round
     }
@@ -175,20 +175,42 @@ contract TRY {
     /**
     * @dev used by the lottery operator to draw numbers of the current lottery round
     */
-    function drawNumbers() public view onlyOperator isLotteryActive returns(uint[] memory drawed) {
+    function drawNumbers() public onlyOperator isLotteryActive {
         require(block.number >= roundTime, "The Round is not Closed, is not the time to draw");
-        bool[69] memory drawn;
+        bool[69] memory checkN;
         for (uint i = 0; i < 69; i++) {
-            drawn[i] = false;
+            checkN[i] = false;
         }
-
-        uint numberD;
-        bytes32 seed = block.blockhash(roundTime + K);
+        //number drawn
+        uint nD;
+        //seed
+        bytes32 seed = blockhash(roundTime + K);
 
         for (uint i = 0; i < 5; i++) {
-            numberD = uint(keccak256(abi.encodePacked(now, msg.sender, seed))) % 69;
-            //controlla se già estratto in qualche modo correggi
+            /**
+            * number generator using the block stimestemp, sender address and the
+            * the hash of the block of height at least X+K, where X is the height of 
+            * the block corresponding to the end of R and K is a parameter
+            */
+            nD = (uint(keccak256(abi.encodePacked(block.timestamp, msg.sender, seed))) % 69) + 1;
+            
+            //check if the number is repeated or not
+            if( checkN[nD-1] ) {
+                i -= 1;
+            }
+            else {
+                checkN[nD-1] = true;
+                winningNumbers[i] = nD;
+            }
         }
+
+        //powerball number
+        powerball = (uint(keccak256(abi.encodePacked(block.timestamp, msg.sender, seed))) % 26) + 1;
+        emit Log("The Lottery Operator has drawn the winning numbers and the Powerball number", msg.sender);
+        //close the round
+        changePhaseRound(roundPhase.Closed);
+
+        //TODO: chiamare la funzione che assegna i premi
     }
 
     /**
