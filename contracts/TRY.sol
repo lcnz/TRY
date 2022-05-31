@@ -25,30 +25,35 @@ contract TRY {
     uint blockNumber; //initial round block number
     uint constant M = 150; //lottery fixed duration 30 mins
     uint constant K = 42; //fixed parameter K
-    uint constant D = 10; //10 blocks represent 2 minutes delay
+    //uint constant D = 10; //10 blocks represent 2 minutes delay, ---> controlla la sua necessità
     uint constant TKT_PRICE = 200000 gwei; //ticket price
     uint roundTime;
 
-    bool prizesAwarded;
+    bool arePrizesAwarded;
 
     TryKitty tryNft; //prize
 
-    //struct that represents a ticket
+    //struct that represents a Ticket of the gambler
     struct Ticket {
-        uint[] stdNumbers;
-        uint pwrBall;
+        address gambler;
+        uint[] numbers;
+        uint powerball;
         uint matchesN;
         bool matchesPb;
         bool isLucky;
     }
+
+    //array of all bets
+    Ticket[] bets;
+
     //maps the ticket number to gambler
-    mapping(address => Ticket[]) bets;
+    //mapping(address => Ticket[]) bets;
     //store the gamblers of the round lottery
-    address payable[] gamblers;
+    //address payable[] gamblers;
     //TODO: riflettere se è meglio usare direttamente un array di ticket 
     //list of players in the round. necessario??
 
-    //list of winners.
+    //list of winners. necessaria??
     address[] winners;
 
     //maps the tokenID to the class of prize
@@ -115,16 +120,16 @@ contract TRY {
     constructor() {
 
         operator = payable(msg.sender);        
-        prizesAwarded = false;
+        arePrizesAwarded = false;
         tryNft = new TryKitty();
 
         //activate the lottery and the round
         changeLotteryState(lotteryState.Active);
-        //changePhaseRound(roundPhase.Active); meglio chiamare start New ROund
+        //changePhaseRound(roundPhase.Active); meglio chiamare start New ROund TODO !! attivare il round qui??
         //generates the first 8 prizes, one for each class
-        for (uint i = 0; i<8; i++) {
-            //track tokeId to the class 
-            prizeClasses[i+1].push(tryNft.safeMint(operator, i+1));
+        for (uint i = 0; i<=8; i++) {
+            //mint initial prizes, one of each class
+            mint(i+1);
         }
     }
 
@@ -148,11 +153,9 @@ contract TRY {
 		require(money >= TKT_PRICE, "200000 gwei are required to buy a ticket");
         require(pickedNumbers.length == 6, "Pick 5 standard numbers and a powerball");
         bool[69] memory checkN; //side array used to check duplicates with direct access
-        uint[] memory stdN;
         for (uint i=0; i<69; i++) {
             checkN[i] = false;
         }
-        uint pwrB;
 
         //check numbers conformity
         for(uint i = 0; i < pickedNumbers.length; i++) {
@@ -163,22 +166,26 @@ contract TRY {
             }
             else {
                 require(pickedNumbers[i] >= 1 && pickedNumbers[i] <= 26, "Choose a Powerball number in the range from 1 to 26");
-                pwrB = pickedNumbers[i];
             } 
         }
 
         //emit an event ticket bought or log ticket bought
         emit Log("Ticket Lottery purchased", msg.sender);
          //track player ticket 
-        bets[msg.sender].push(Ticket(stdN, pwrB, 0, false, false));
-        gamblers.push(msg.sender);
+        bets.push(Ticket(msg.sender, pickedNumbers, pickedNumbers[5], 0, false, false));
+        //gamblers.push(msg.sender);
 
+        //give back the change
         if(money > TKT_PRICE) {
             change = msg.value - TKT_PRICE;
             // Reimbourse the change
             payable(msg.sender).transfer(change);
         }
+
 	}
+
+    //TODO: decidere dove controllare se gli utenti hanno acquistato biglietti e poi la 
+    //lotteria è stata chiusa. vanno restituiti i soldi
 
     /**
     * @dev used by the lottery operator to draw numbers of the current lottery round
@@ -192,8 +199,6 @@ contract TRY {
         }
         //number drawn
         uint extractedN;
-        //seed
-        bytes32 sourceR = blockhash(roundTime + K);
         
         uint seed = 0;
 
@@ -204,7 +209,7 @@ contract TRY {
             * the hash of the block of height at least X+K, where X is the height of 
             * the block corresponding to the end of R and K is a parameter
             */
-            extractedN = (uint(keccak256(abi.encodePacked(block.timestamp, sourceR, seed))) % 69) + 1;
+            extractedN = (uint(keccak256(abi.encodePacked(block.timestamp, block.difficulty, roundTime + K, seed))) % 69) + 1;
             //check if the number is repeated or not
             if( checkN[extractedN-1] ) {
                 i -= 1;
@@ -219,33 +224,52 @@ contract TRY {
         }
 
         //powerball number
-        luckyNumbers[5] = (uint(keccak256(abi.encodePacked(block.timestamp, msg.sender, seed))) % 26) + 1;
+        luckyNumbers[5] = (uint(keccak256(abi.encodePacked(block.timestamp, block.difficulty, roundTime + K, seed))) % 26) + 1;
         emit Log("The Lottery Operator has drawn the winning numbers and the Powerball number", msg.sender);
         //close the round
         changePhaseRound(roundPhase.Closed);
         //TODO: chiamare la funzione che assegna i premi
+
+        givePrizes(luckyNumbers);
     }
 
     /**
     * @dev used by lottery operator to distribute the prizes of the current lottery round
     */
-    function givePrizes() public onlyOperator isLotteryActive isRoundClosed {
-        require(!prizesAwarded, "Prizes already Awarded");
+    function givePrizes(uint[] memory _luckyNumbers) public onlyOperator isLotteryActive isRoundClosed {
+        require(!arePrizesAwarded, "Prizes already Awarded");
 
-        uint wPowerball = luckyNumbers[5];
+        uint wPowerball = _luckyNumbers[5];
+        uint[] memory ticketNumbers;
 
         for (uint i = 0; i < bets.length; i++) {
-            bets[i].    
+            ticketNumbers = bets[i].numbers;
+            for (uint j = 0; j < _luckyNumbers.length; i++) {
+                for (uint k = 0; k < ticketNumbers.length; i++) {
+                    if (ticketNumbers[j] == _luckyNumbers[i]) {
+                        bets[i].matchesN ++;
+                        break;
+                    }
+                }
+            }
+            if (bets[i].powerball == wPowerball) {
+                bets[i].matchesPb = true;
+            }
+
+            if (bets[i].matchesN > 0 || bets[i].matchesPb)
+                bets[i].isLucky = true;
         }
 
-        //TODO: terminare givePrizes
+        //TODO: dopo aver controllato i biglietti vincenti devo assegnare i premi
     }
 
     /**
-    * @dev used to mint new collectibles
+    * @dev used to mint new collectible
     */
-    function mint() public onlyOperator isLotteryActive isRoundFinished {
-        
+    function mint(uint _class) public onlyOperator isLotteryActive {
+        prizeClasses[_class].push(tryNft.safeMint(operator, _class));
+
+        emit Log("The Lottery Operator has mint a new Prize", msg.sender);
     }
 
     /**
