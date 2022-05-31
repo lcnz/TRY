@@ -20,7 +20,7 @@ contract TRY {
        operator.transfer(address(this).balance);
     }
 
-    uint[] winningNumbers;
+    uint[] luckyNumbers;
 
     uint blockNumber; //initial round block number
     uint constant M = 150; //lottery fixed duration 30 mins
@@ -39,10 +39,13 @@ contract TRY {
         uint pwrBall;
         uint matchesN;
         bool matchesPb;
+        bool isLucky;
     }
-    //maps the ticket number to player
+    //maps the ticket number to gambler
     mapping(address => Ticket[]) bets;
-
+    //store the gamblers of the round lottery
+    address payable[] gamblers;
+    //TODO: riflettere se è meglio usare direttamente un array di ticket 
     //list of players in the round. necessario??
 
     //list of winners.
@@ -167,7 +170,8 @@ contract TRY {
         //emit an event ticket bought or log ticket bought
         emit Log("Ticket Lottery purchased", msg.sender);
          //track player ticket 
-        bets[msg.sender].push(Ticket(stdN, pwrB, 0, false));
+        bets[msg.sender].push(Ticket(stdN, pwrB, 0, false, false));
+        gamblers.push(msg.sender);
 
         if(money > TKT_PRICE) {
             change = msg.value - TKT_PRICE;
@@ -206,7 +210,7 @@ contract TRY {
                 i -= 1;
             }
             else {
-                winningNumbers[i] = extractedN;
+                luckyNumbers[i] = extractedN;
                 checkN[extractedN-1] = true;
 
             }
@@ -215,7 +219,7 @@ contract TRY {
         }
 
         //powerball number
-        powerball = (uint(keccak256(abi.encodePacked(block.timestamp, msg.sender, seed))) % 26) + 1;
+        luckyNumbers[5] = (uint(keccak256(abi.encodePacked(block.timestamp, msg.sender, seed))) % 26) + 1;
         emit Log("The Lottery Operator has drawn the winning numbers and the Powerball number", msg.sender);
         //close the round
         changePhaseRound(roundPhase.Closed);
@@ -228,10 +232,10 @@ contract TRY {
     function givePrizes() public onlyOperator isLotteryActive isRoundClosed {
         require(!prizesAwarded, "Prizes already Awarded");
 
-        uint wPowerball = winningNumbers[5];
+        uint wPowerball = luckyNumbers[5];
 
         for (uint i = 0; i < bets.length; i++) {
-
+            bets[i].    
         }
 
         //TODO: terminare givePrizes
