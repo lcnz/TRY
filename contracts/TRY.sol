@@ -16,11 +16,13 @@ contract TRY {
         _;
     }
     //withdraw the funds of the contract
-    function withdraw() public onlyOperator {
-       operator.transfer(address(this).balance);
+    function withdraw(address withdrawal) private onlyOperator isRoundFinished{
+       payable(withdrawal).transfer(address(this).balance);
+        emit Log("the total balance of the contract has been transferred", operator);
+
     }
 
-    uint[] luckyNumbers;
+    uint[] luckyNumbers; //TODO: va ripulito controllare in test
 
     uint blockNumber; //initial round block number
     uint constant M = 150; //lottery fixed duration 30 mins
@@ -45,22 +47,6 @@ contract TRY {
 
     //array of all bets
     Ticket[] bets;
-
-    //maps the ticket number to gambler
-    //mapping(address => Ticket[]) bets;
-    //store the gamblers of the round lottery
-    //address payable[] gamblers;
-    //TODO: riflettere se è meglio usare direttamente un array di ticket 
-    //list of players in the round. necessario??
-
-    //list of winners. necessaria??
-    address[] winners;
-
-    //maps the tokenID to the class of prize
-    mapping(uint => uint256[]) prizeClasses;
-
-    //list of tokenIDs
-    uint[] Ids;
 
     enum roundPhase{ Active, Closed, Finished }
     roundPhase phase;
@@ -115,6 +101,7 @@ contract TRY {
 
     //useful event to log what happen
     event Log(string eventLog, address caller);
+    event prizeAwarded(string eventLog, address winner, uint classPrize);
         
 
     constructor() {
@@ -260,14 +247,73 @@ contract TRY {
                 bets[i].isLucky = true;
         }
 
+        uint kittyClass;
+        uint nm;
+        bool p;
         //TODO: dopo aver controllato i biglietti vincenti devo assegnare i premi
+         for (uint i = 0; i < bets.length; i++){ //for each bet in the round
+            nm = bets[i].matchesN;
+            p = bets[i].matchesPb;
+
+            if (nm == 5 && p)
+                //kitty of class 1
+                kittyClass = 1;
+            else if ( nm == 5 && !p)
+                //kitty of class 2
+                kittyClass = 2;
+            else if (nm == 4 && p)
+                //kitty of class 3
+                kittyClass = 3;
+            else if (nm == 4 && !p)
+                //kitty of class 4
+                kittyClass = 4;
+            else if (nm == 3 && p)
+                //kitty of class 4
+                kittyClass = 4;
+            else if (nm == 3 && !p)
+                //kitty of class 5
+                kittyClass = 5;
+            else if (nm == 2 && p)
+                //kitty of class 5
+                kittyClass = 5;
+            else if (nm == 2 && !p)
+                //kitty of class 6
+                kittyClass = 6;
+            else if (nm == 1 && p)
+                //kitty of class 6
+                kittyClass = 6;
+            else if (nm == 1 && !p)
+                //kitty of class 7
+                kittyClass = 7;
+            else if (nm == 0 && p)
+                //kitty of class 8
+                kittyClass = 8;
+
+            //assign the prize and mint a new one
+            uint kittyId = tryNft.getTokenOfClassX(kittyClass);
+            tryNft.awardItem(operator, bets[i].gambler, kittyId);
+            mint(kittyClass);
+
+            emit prizeAwarded("The Gambler has been awarded", bets[i].gambler, kittyClass);
+        }
+
+        //set true the variable used to check if the prizes have been awarded
+        arePrizesAwarded = true;
+        
+        changePhaseRound(roundPhase.Finished);
+
+        withdraw(operator);
+
+
+        //cleanup bets
+        delete bets;
     }
 
     /**
     * @dev used to mint new collectible
     */
     function mint(uint _class) public onlyOperator isLotteryActive {
-        prizeClasses[_class].push(tryNft.safeMint(operator, _class));
+        tryNft.safeMint(_class);
 
         emit Log("The Lottery Operator has mint a new Prize", msg.sender);
     }

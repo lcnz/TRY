@@ -18,13 +18,13 @@ contract TryKitty is ERC721, Ownable {
 
     constructor() ERC721("TryKitty", "TKTY") {}
 
-    function safeMint(address to, uint class) public onlyOwner returns(uint256){
+    function safeMint(uint class) public onlyOwner returns(uint256){
         uint256 tokenId = _tokenIdCounter.current();
         _tokenIdCounter.increment();
         classes[class] = tokenId;
         KittyDex[tokenId] = string(abi.encodePacked("Faboulous Kitty of class ", Strings.toString(class)));
 
-        _safeMint(to, tokenId);
+        _safeMint(owner(), tokenId);
         return tokenId;
     }
 
@@ -32,8 +32,8 @@ contract TryKitty is ERC721, Ownable {
         return classes[class];
     }
 
-    function checkTokenOfClassX(uint class)public view onlyOwner returns(uint256){
-        return classes[class];
+    function checkDescription(uint256 ID)public view onlyOwner returns(string memory){
+        return KittyDex[ID];
     }
 
     function awardItem(address owner, address player, uint256 tokendId) public onlyOwner{
