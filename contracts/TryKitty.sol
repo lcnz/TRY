@@ -2,41 +2,51 @@
 pragma solidity >=0.7.0 <0.9.0;
 
 import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/Counters.sol";
 import "@openzeppelin/contracts/utils/Strings.sol";
 
-contract TryKitty is ERC721, Ownable {
+contract TryKitty is ERC721 {
     using Counters for Counters.Counter;
 
     Counters.Counter private _tokenIdCounter;
+
+    address lotteryOwner;
+    address tryLottery;
 
     //Mapping classess(rank) to tokenid
     mapping(uint => uint256) classes;
     //Mapping tokenId to description like a Pokedex
     mapping(uint => string) KittyDex;
 
-    constructor() ERC721("TryKitty", "TKTY") {}
+    modifier onlyTryLottery {
+        require(msg.sender == tryLottery, "only the lottery can use this function");
+        _;
+    }
 
-    function safeMint(uint class) public onlyOwner returns(uint256){
+    constructor(address operator) ERC721("TryKitty", "TKTY") {
+        lotteryOwner = operator;
+        tryLottery = msg.sender;
+        _setApprovalForAll(lotteryOwner, tryLottery, true);
+    }
+
+    function safeMint(uint _class) public {
         uint256 tokenId = _tokenIdCounter.current();
         _tokenIdCounter.increment();
-        classes[class] = tokenId;
-        KittyDex[tokenId] = string(abi.encodePacked("Faboulous Kitty of class ", Strings.toString(class)));
+        classes[_class] = tokenId;
+        KittyDex[tokenId] = string(abi.encodePacked("Faboulous Kitty of class: ", Strings.toString(_class)));
 
-        _safeMint(owner(), tokenId);
-        return tokenId;
+        _safeMint(lotteryOwner, tokenId);
     }
 
-    function getTokenOfClassX(uint class)public view onlyOwner returns(uint256){
-        return classes[class];
+    function getTokenOfClassX(uint _class)public view returns(uint256){
+        return classes[_class];
     }
 
-    function checkDescription(uint256 ID)public view onlyOwner returns(string memory){
+    function checkDescription(uint256 ID)public view returns(string memory){
         return KittyDex[ID];
     }
 
-    function awardItem(address owner, address player, uint256 tokendId) public onlyOwner{
-        safeTransferFrom(owner, player, tokendId);
+    function awardItem(address player, uint256 tokendId) public onlyTryLottery {
+        safeTransferFrom(lotteryOwner, player, tokendId);
     }
 }

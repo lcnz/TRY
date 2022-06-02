@@ -22,7 +22,7 @@ contract TRY {
 
     }
 
-    uint[] luckyNumbers; 
+    uint[6] luckyNumbers; 
 
     uint blockNumber; //initial round block number
     uint constant M = 150; //lottery fixed duration 30 mins
@@ -31,9 +31,10 @@ contract TRY {
     uint constant TKT_PRICE = 200000 gwei; //ticket price
     uint roundTime;
 
-    bool arePrizesAwarded;
 
     TryKitty tryNft; //prize
+
+    event prizeDescription(string description);
 
     //struct that represents a Ticket of the gambler
     struct Ticket {
@@ -108,8 +109,7 @@ contract TRY {
     constructor() {
 
         operator = payable(msg.sender);        
-        arePrizesAwarded = false;
-        tryNft = new TryKitty();
+        tryNft = new TryKitty(operator);
         
         //mints the first 8 prizes, one for each class
         for (uint i = 0; i<=8; i++) {
@@ -131,7 +131,7 @@ contract TRY {
         blockNumber = block.number;
         roundTime = blockNumber + M;
         changePhaseRound(roundPhase.Active);
-        //TODO cntrollare cosa altro c'è da fare per iniziare un nuovo round
+
     }
 
     /**
@@ -171,6 +171,8 @@ contract TRY {
             change = msg.value - TKT_PRICE;
             // Reimbourse the change
             payable(msg.sender).transfer(change);
+
+            emit Log("Change refunded", msg.sender);
         }
 
 	}
@@ -218,23 +220,22 @@ contract TRY {
         changePhaseRound(roundPhase.Closed);
 
         //call the function that awards the prizes
-        givePrizes(luckyNumbers);
+        givePrizes();
     }
 
     /**
     * @dev used by lottery operator to distribute the prizes of the current lottery round
     */
-    function givePrizes(uint[] memory _luckyNumbers) public onlyOperator isLotteryActive isRoundClosed {
-        require(!arePrizesAwarded, "Prizes already Awarded");
+    function givePrizes() public onlyOperator isLotteryActive isRoundClosed {
 
-        uint wPowerball = _luckyNumbers[5];
+        uint wPowerball = luckyNumbers[5];
         uint[] memory ticketNumbers;
 
         for (uint i = 0; i < bets.length; i++) {
             ticketNumbers = bets[i].numbers;
-            for (uint j = 0; j < _luckyNumbers.length; i++) {
+            for (uint j = 0; j < luckyNumbers.length; i++) {
                 for (uint k = 0; k < ticketNumbers.length; i++) {
-                    if (ticketNumbers[j] == _luckyNumbers[i]) {
+                    if (ticketNumbers[j] == luckyNumbers[i]) {
                         bets[i].matchesN ++;
                         break;
                     }
@@ -292,14 +293,13 @@ contract TRY {
 
             //assign the prize and mint a new one
             uint kittyId = tryNft.getTokenOfClassX(kittyClass);
-            tryNft.awardItem(operator, bets[i].gambler, kittyId);
+            tryNft.awardItem(bets[i].gambler, kittyId);
             mint(kittyClass);
 
             emit prizeAwarded("The Gambler has been awarded", bets[i].gambler, kittyClass);
         }
 
         //set true the variable used to check if the prizes have been awarded
-        arePrizesAwarded = true;
         
         changePhaseRound(roundPhase.Finished);
 
@@ -326,14 +326,22 @@ contract TRY {
 		changeLotteryState(lotteryState.Closed);
 
         //
-        if(phase == roundPhase.Active && !arePrizesAwarded){
+        if(phase == roundPhase.Active){
             for(uint i = 0; i < bets.length; i++) {
                 payable(bets[i].gambler).transfer(TKT_PRICE);
             }
 
-            emit Log("players have been reimbursed", address(this));
+            emit Log("Players have been reimbursed", address(this));
         }
 
     }
 
+    /**
+    * @dev Used by the gambler to check the prize description
+    */    
+    function checkPrizeDescription(uint256 ID) public {
+        string memory description = tryNft.checkDescription(ID);
+
+        emit prizeDescription(description);
+    }
 }
