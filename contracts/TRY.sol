@@ -22,7 +22,7 @@ contract TRY {
 
     }
 
-    uint[] luckyNumbers; //TODO: va ripulito controllare in test
+    uint[] luckyNumbers; 
 
     uint blockNumber; //initial round block number
     uint constant M = 150; //lottery fixed duration 30 mins
@@ -87,6 +87,7 @@ contract TRY {
         else
             emit LotteryStateChanged("The Lottery has been closed", state);
 	}
+    
     //function that change the lottery state
     function changePhaseRound(roundPhase _newPhase) private {
 		phase = _newPhase;
@@ -109,15 +110,18 @@ contract TRY {
         operator = payable(msg.sender);        
         arePrizesAwarded = false;
         tryNft = new TryKitty();
-
-        //activate the lottery and the round
-        changeLotteryState(lotteryState.Active);
-        //changePhaseRound(roundPhase.Active); meglio chiamare start New ROund TODO !! attivare il round qui??
-        //generates the first 8 prizes, one for each class
+        
+        //mints the first 8 prizes, one for each class
         for (uint i = 0; i<=8; i++) {
             //mint initial prizes, one of each class
             mint(i+1);
         }
+
+        //activate the lottery
+        changeLotteryState(lotteryState.Active);
+
+        //change phase of the round in Finished permitt to the operatore to use startNewRound function
+        changePhaseRound(roundPhase.Finished);
     }
 
     /**
@@ -171,9 +175,6 @@ contract TRY {
 
 	}
 
-    //TODO: decidere dove controllare se gli utenti hanno acquistato biglietti e poi la 
-    //lotteria è stata chiusa. vanno restituiti i soldi
-
     /**
     * @dev used by the lottery operator to draw numbers of the current lottery round
     */
@@ -215,8 +216,8 @@ contract TRY {
         emit Log("The Lottery Operator has drawn the winning numbers and the Powerball number", msg.sender);
         //close the round
         changePhaseRound(roundPhase.Closed);
-        //TODO: chiamare la funzione che assegna i premi
 
+        //call the function that awards the prizes
         givePrizes(luckyNumbers);
     }
 
@@ -250,8 +251,8 @@ contract TRY {
         uint kittyClass;
         uint nm;
         bool p;
-        //TODO: dopo aver controllato i biglietti vincenti devo assegnare i premi
-         for (uint i = 0; i < bets.length; i++){ //for each bet in the round
+        //After checking the winning tickets I have to award the prizes
+        for (uint i = 0; i < bets.length; i++){ //for each bet in the round
             nm = bets[i].matchesN;
             p = bets[i].matchesPb;
 
@@ -304,9 +305,9 @@ contract TRY {
 
         withdraw(operator);
 
-
-        //cleanup bets
+        //cleanup
         delete bets;
+        delete luckyNumbers;
     }
 
     /**
@@ -324,11 +325,15 @@ contract TRY {
     function closeLottery() public payable isLotteryActive onlyOperator {
 		changeLotteryState(lotteryState.Closed);
 
-        //controlla se il round era attivo, nel caso vanno rimborsati tutti i giocatori
+        //
+        if(phase == roundPhase.Active && !arePrizesAwarded){
+            for(uint i = 0; i < bets.length; i++) {
+                payable(bets[i].gambler).transfer(TKT_PRICE);
+            }
 
-        //TODO: check if lottery contract is Active or Not, possibly check the check with round
-	}
+            emit Log("players have been reimbursed", address(this));
+        }
 
-    
+    }
 
 }
