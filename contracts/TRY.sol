@@ -25,8 +25,8 @@ contract TRY {
     uint[6] luckyNumbers; 
 
     uint blockNumber; //initial round block number
-    uint constant M = 60; //lottery fixed duration 5 mins for testing purposes, change this parameter to increase the duration
-    uint constant K = 42; //fixed parameter K
+    uint M; //lottery round duration in number of blocks, change this parameter to increase the duration
+    uint K; //parameter K used to take the blocks of height duration of the round + K
     //uint constant D = 10; //10 blocks represent 2 minutes delay, ---> controlla la sua necessità
     uint constant TKT_PRICE = 200000 gwei; //ticket price
     uint roundTime;
@@ -106,10 +106,13 @@ contract TRY {
     event prizeAwarded(string eventLog, address winner, uint classPrize);
         
 
-    constructor() {
+    constructor(uint _K, uint _M) {
 
         operator = payable(msg.sender);        
         tryNft = new TryKitty(operator);
+
+        K = _K;
+        M = _M;
         
         //mints the first 8 prizes, one for each class
         for (uint i = 0; i<=8; i++) {
