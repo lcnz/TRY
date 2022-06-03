@@ -25,7 +25,7 @@ contract TRY {
     uint[6] luckyNumbers; 
 
     uint blockNumber; //initial round block number
-    uint constant M = 150; //lottery fixed duration 30 mins
+    uint constant M = 60; //lottery fixed duration 5 mins for testing purposes, change this parameter to increase the duration
     uint constant K = 42; //fixed parameter K
     //uint constant D = 10; //10 blocks represent 2 minutes delay, ---> controlla la sua necessità
     uint constant TKT_PRICE = 200000 gwei; //ticket price
@@ -81,7 +81,7 @@ contract TRY {
         _;
     }
     //function that change the lottery state
-    function changeLotteryState(lotteryState _newState) private {
+    function changeLotteryState(lotteryState _newState) private onlyOperator{
 		state = _newState;
         if(_newState == lotteryState.Active)
 		    emit LotteryStateChanged("The Lottery has been activated", state);
@@ -90,7 +90,7 @@ contract TRY {
 	}
     
     //function that change the lottery state
-    function changePhaseRound(roundPhase _newPhase) private {
+    function changePhaseRound(roundPhase _newPhase) private onlyOperator{
 		phase = _newPhase;
         if(_newPhase == roundPhase.Active)
 		    emit RoundPhaseChanged("The Round has been activated", phase);
@@ -137,7 +137,7 @@ contract TRY {
     /**
     * @dev permitt to the users to buy the ticket 
     */
-    function buy(uint[] memory pickedNumbers) isLotteryActive isRoundActive public payable {
+    function buy(uint[] memory pickedNumbers) public isLotteryActive isRoundActive  payable {
         require(block.number < roundTime, "The operator has not closed the round, but the round time has ended");
         uint money = msg.value;
         uint change;
@@ -195,9 +195,9 @@ contract TRY {
         for (uint i = 0; i < 5; i++) {
             
             /**
-            * number generator using the block stimestemp, sender address and the
-            * the hash of the block of height at least X+K, where X is the height of 
-            * the block corresponding to the end of R and K is a parameter
+            * number generator using the block stimestemp, block difficulty
+            * the block of height at least X+K, where X is the height of 
+            * the block corresponding to the end of R and K is a parameter and a seed
             */
             extractedN = (uint(keccak256(abi.encodePacked(block.timestamp, block.difficulty, roundTime + K, seed))) % 69) + 1;
             //check if the number is repeated or not
