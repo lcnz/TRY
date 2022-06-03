@@ -116,7 +116,7 @@ contract TRY {
         M = _M;
         
         //mints the first 8 prizes, one for each class
-        for (uint i = 0; i<=8; i++) {
+        for (uint i = 0; i<8; i++) {
             //mint initial prizes, one of each class
             mint(i+1);
         }
@@ -199,7 +199,7 @@ contract TRY {
         for (uint i = 0; i < 5; i++) {
             
             /**
-            * number generator using the block stimestemp, block difficulty
+            * number generator using the block timestemp, block difficulty
             * the block of height at least X+K, where X is the height of 
             * the block corresponding to the end of R and K is a parameter and a seed
             */
@@ -321,7 +321,6 @@ contract TRY {
         delete bets;
         delete luckyNumbers;
 
-        //TODO: controllare meglio
     }
 
     /**
