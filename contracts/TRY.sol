@@ -39,7 +39,7 @@ contract TRY {
     //struct that represents a Ticket of the gambler
     struct Ticket {
         address gambler;
-        uint[] numbers;
+        uint[6] numbers;
         uint powerball;
         uint matchesN;
         bool matchesPb;
@@ -104,6 +104,7 @@ contract TRY {
     //useful event to log what happen
     event Log(string eventLog, address caller);
     event prizeAwarded(string eventLog, address winner, uint classPrize);
+    event luckyNumbersDrawn(string eventLog, uint[6] lucky);
         
 
     constructor(uint _K, uint _M) {
@@ -140,7 +141,7 @@ contract TRY {
     /**
     * @dev permitt to the users to buy the ticket 
     */
-    function buy(uint[] memory pickedNumbers) public isLotteryActive isRoundActive  payable {
+    function buy(uint[6] memory pickedNumbers) public isLotteryActive isRoundActive  payable {
         require(block.number < roundTime, "The operator has not closed the round, but the round time has ended");
         uint money = msg.value;
         uint change;
@@ -215,10 +216,12 @@ contract TRY {
             //increment seed to avoid repetition
             seed++;
         }
+        
+        seed++;
 
         //powerball number
         luckyNumbers[5] = (uint(keccak256(abi.encodePacked(block.timestamp, block.difficulty, roundTime + K, seed))) % 26) + 1;
-        emit Log("The Lottery Operator has drawn the winning numbers and the Powerball number", msg.sender);
+        emit luckyNumbersDrawn("The Lottery Operator has drawn the winning numbers and the Powerball number", luckyNumbers);
         //close the round
         changePhaseRound(roundPhase.Closed);
 
@@ -232,13 +235,13 @@ contract TRY {
     function givePrizes() public onlyOperator isLotteryActive isRoundClosed {
 
         uint wPowerball = luckyNumbers[5];
-        uint[] memory ticketNumbers;
+        uint[6] memory ticketNumbers;
 
         for (uint i = 0; i < bets.length; i++) {
             ticketNumbers = bets[i].numbers;
-            for (uint j = 0; j < luckyNumbers.length; i++) {
-                for (uint k = 0; k < ticketNumbers.length; i++) {
-                    if (ticketNumbers[j] == luckyNumbers[i]) {
+            for (uint j = 0; j < luckyNumbers.length-1; j++) {
+                for (uint k = 0; k < ticketNumbers.length-1; k++) {
+                    if (ticketNumbers[k] == luckyNumbers[j]) {
                         bets[i].matchesN ++;
                         break;
                     }
@@ -256,7 +259,11 @@ contract TRY {
         uint nm;
         bool p;
         //After checking the winning tickets I have to award the prizes
-        for (uint i = 0; i < bets.length; i++){ //for each bet in the round
+        for (uint i = 0; i < bets.length; i++){
+            //check if the ticket is Lucky otherwise skip the operations
+            if (!bets[i].isLucky) 
+                continue;
+
             nm = bets[i].matchesN;
             p = bets[i].matchesPb;
 
@@ -294,6 +301,8 @@ contract TRY {
                 //kitty of class 8
                 kittyClass = 8;
 
+
+
             //assign the prize and mint a new one
             uint kittyId = tryNft.getTokenOfClassX(kittyClass);
             tryNft.awardItem(bets[i].gambler, kittyId);
@@ -311,6 +320,8 @@ contract TRY {
         //cleanup
         delete bets;
         delete luckyNumbers;
+
+        //TODO: controllare meglio
     }
 
     /**
