@@ -139,7 +139,7 @@ contract TRY {
     }
 
     /**
-    * @dev permitt to the users to buy the ticket 
+    * @dev permitt to the gamblers to buy the ticket 
     */
     function buy(uint[6] memory pickedNumbers) public isLotteryActive isRoundActive  payable {
         require(block.number < roundTime, "The operator has not closed the round, but the round time has ended");

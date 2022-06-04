@@ -13,9 +13,9 @@ contract TryKitty is ERC721 {
     address lotteryOwner;
     address tryLottery;
 
-    //Mapping classess(rank) to tokenid
+    //Mapping kitty classess to tokenid
     mapping(uint => uint256) classes;
-    //Mapping tokenId to description like a Pokedex
+    //Mapping tokenId to description like a Pokedex (to catalog and provide information regarding the various species of Kitty)
     mapping(uint => string) KittyDex;
 
     modifier onlyTryLottery {
