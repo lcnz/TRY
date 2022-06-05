@@ -164,9 +164,8 @@ contract TRY {
 
         //emit an event ticket bought or log ticket bought
         emit Log("Ticket Lottery purchased", msg.sender);
-         //track player ticket 
+         //stores player ticket 
         bets.push(Ticket(msg.sender, pickedNumbers, pickedNumbers[5], 0, false, false));
-        //gamblers.push(msg.sender);
 
         //give back the change
         if(money > TKT_PRICE) {
