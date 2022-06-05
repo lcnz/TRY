@@ -12,14 +12,8 @@ contract TRY {
     address payable operator; //lottery operator
     //modifier
     modifier onlyOperator {
-        require(msg.sender == operator, "only the lottery operator can use this function");
+        require(msg.sender == operator, "Only the lottery operator can use this function");
         _;
-    }
-    //withdraw the funds of the contract
-    function withdraw(address withdrawal) private onlyOperator isRoundFinished{
-       payable(withdrawal).transfer(address(this).balance);
-        emit Log("the total balance of the contract has been transferred", operator);
-
     }
 
     uint[6] luckyNumbers; 
@@ -27,7 +21,6 @@ contract TRY {
     uint blockNumber; //initial round block number
     uint M; //lottery round duration in number of blocks, change this parameter to increase the duration
     uint K; //parameter K used to take the blocks of height duration of the round + K
-    //uint constant D = 10; //10 blocks represent 2 minutes delay, ---> controlla la sua necessità
     uint constant TKT_PRICE = 200000 gwei; //ticket price
     uint roundTime;
 
@@ -80,7 +73,10 @@ contract TRY {
         require(state == lotteryState.Active, "Lottery has been closed by the lottery operator");
         _;
     }
-    //function that change the lottery state
+
+    /**
+    * @dev function that change the lottery state
+    */
     function changeLotteryState(lotteryState _newState) private onlyOperator{
 		state = _newState;
         if(_newState == lotteryState.Active)
@@ -89,7 +85,9 @@ contract TRY {
             emit LotteryStateChanged("The Lottery has been closed", state);
 	}
     
-    //function that change the lottery state
+    /**
+    * @dev change the lottery state
+    */
     function changePhaseRound(roundPhase _newPhase) private onlyOperator{
 		phase = _newPhase;
         if(_newPhase == roundPhase.Active)
@@ -103,7 +101,7 @@ contract TRY {
 
     //useful event to log what happen
     event Log(string eventLog, address caller);
-    event prizeAwarded(string eventLog, address winner, uint classPrize);
+    event prizeAwarded(string eventLog, address winner, uint classPrize, uint256 tokendId);
     event luckyNumbersDrawn(string eventLog, uint[6] lucky);
         
 
@@ -308,14 +306,17 @@ contract TRY {
             tryNft.awardItem(bets[i].gambler, kittyId);
             mint(kittyClass);
 
-            emit prizeAwarded("The Gambler has been awarded", bets[i].gambler, kittyClass);
+            //log the event prize awarded with the useful information address of the winner, class of the prize and prize id
+            emit prizeAwarded("The Gambler has been awarded", bets[i].gambler, kittyClass, kittyId);
         }
 
         //set true the variable used to check if the prizes have been awarded
         
         changePhaseRound(roundPhase.Finished);
 
-        withdraw(operator);
+        //transfers the contract funds to the operator's address
+        operator.transfer(address(this).balance);
+        emit Log("The total balance of the contract has been transferred", operator);
 
         //cleanup
         delete bets;
@@ -338,7 +339,7 @@ contract TRY {
     function closeLottery() public payable isLotteryActive onlyOperator {
 		changeLotteryState(lotteryState.Closed);
 
-        //
+        
         if(phase == roundPhase.Active){
             for(uint i = 0; i < bets.length; i++) {
                 payable(bets[i].gambler).transfer(TKT_PRICE);

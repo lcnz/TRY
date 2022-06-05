@@ -29,6 +29,9 @@ contract TryKitty is ERC721 {
         _setApprovalForAll(lotteryOwner, tryLottery, true);
     }
 
+    /**
+    * @dev mints the token of the class being passed as an argument and assigne the token to the lottery operator
+    */
     function safeMint(uint _class) public {
         uint256 tokenId = _tokenIdCounter.current();
         _tokenIdCounter.increment();
@@ -38,14 +41,23 @@ contract TryKitty is ERC721 {
         _safeMint(lotteryOwner, tokenId);
     }
 
+    /**
+    * @dev retrieves from the map the token of the class passed as argument
+    */
     function getTokenOfClassX(uint _class)public view returns(uint256){
         return classes[_class];
     }
 
+    /**
+    * @dev retrieves from the related map the description of the token with tokenId passed as argument
+    */
     function checkDescription(uint256 ID)public view returns(string memory){
         return KittyDex[ID];
     }
 
+    /**
+    * @dev awards the lottery gambler the Kitty NFT
+    */
     function awardItem(address player, uint256 tokendId) public onlyTryLottery {
         safeTransferFrom(lotteryOwner, player, tokendId);
     }
