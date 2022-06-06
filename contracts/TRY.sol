@@ -167,6 +167,7 @@ contract TRY {
          //stores player ticket 
         bets.push(Ticket(msg.sender, pickedNumbers, pickedNumbers[5], 0, false, false));
 
+
         //give back the change
         if(money > TKT_PRICE) {
             change = msg.value - TKT_PRICE;
@@ -338,7 +339,7 @@ contract TRY {
     function closeLottery() public payable isLotteryActive onlyOperator {
 		changeLotteryState(lotteryState.Closed);
 
-        
+        //Refunds any tickets purchased during the round, if it was active
         if(phase == roundPhase.Active){
             for(uint i = 0; i < bets.length; i++) {
                 payable(bets[i].gambler).transfer(TKT_PRICE);

@@ -5,6 +5,10 @@ import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import "@openzeppelin/contracts/utils/Counters.sol";
 import "@openzeppelin/contracts/utils/Strings.sol";
 
+/**
+ * @title TryKitty
+ * @dev Contract for NFT Kitty lottery collectibles
+ */
 contract TryKitty is ERC721 {
     using Counters for Counters.Counter;
 
